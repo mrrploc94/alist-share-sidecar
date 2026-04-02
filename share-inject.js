@@ -6,12 +6,38 @@
   const SHARE_BASE = '/s';
   const BUTTON_ID = 'alist-share-inline-button';
   const MODAL_ID = 'alist-share-modal';
-  const ROW_SELECTORS = [
-    '[aria-selected="true"]',
-    'tr[class*="selected"]',
-    '.is-selected',
-    '.selected',
-  ].join(',');
+  const SELECTOR_PROFILES = [
+    {
+      name: 'table-selected',
+      rowSelectors: ['tr[aria-selected="true"]', 'tr[class*="selected"]', 'tr.selected'],
+      nameSelectors: ['[title]', 'a', 'td', 'span'],
+      ignorePattern: /^(share|download|rename|move|copy|delete|size|modified)$/i,
+      leftFactor: 0.48,
+      minLeftOffset: 240,
+      rightPadding: 120,
+      topPadding: 10,
+    },
+    {
+      name: 'generic-selected',
+      rowSelectors: ['[aria-selected="true"]', '.is-selected', '.selected'],
+      nameSelectors: ['[title]', 'a', '.name', '.hope-text', 'span', 'div', 'p'],
+      ignorePattern: /^(share|download|rename|move|copy|delete|size|modified)$/i,
+      leftFactor: 0.5,
+      minLeftOffset: 220,
+      rightPadding: 124,
+      topPadding: 10,
+    },
+    {
+      name: 'list-item-fallback',
+      rowSelectors: ['.list-item[aria-selected="true"]', '.list-item.selected', '.grid-item.selected'],
+      nameSelectors: ['[title]', '.name', '.hope-text', 'a', 'span', 'div'],
+      ignorePattern: /^(share|download|rename|move|copy|delete|size|modified)$/i,
+      leftFactor: 0.52,
+      minLeftOffset: 210,
+      rightPadding: 128,
+      topPadding: 8,
+    },
+  ];
 
   let currentTarget = null;
   let currentDays = 7;
@@ -19,6 +45,7 @@
   let modal = null;
   let observer = null;
   let rafId = 0;
+  let activeProfile = null;
 
   injectStyles();
   buildModal();
@@ -202,13 +229,27 @@
     return decodeURIComponent(window.location.pathname || '/').replace(/\/+$/, '') || '/';
   }
 
-  function selectedRow() {
-    const rows = Array.from(document.querySelectorAll(ROW_SELECTORS));
-    return rows.find((row) => row instanceof HTMLElement && row.offsetParent !== null) || null;
+  function visibleElements(selector) {
+    return Array.from(document.querySelectorAll(selector))
+      .filter((row) => row instanceof HTMLElement && row.offsetParent !== null);
   }
 
-  function candidateTextNodes(row) {
-    return Array.from(row.querySelectorAll('[title], a, td, span, div, p'))
+  function resolveSelection() {
+    for (const profile of SELECTOR_PROFILES) {
+      const selector = profile.rowSelectors.join(',');
+      const row = visibleElements(selector)[0] || null;
+      if (row) {
+        activeProfile = profile;
+        return { row, profile };
+      }
+    }
+
+    activeProfile = null;
+    return { row: null, profile: null };
+  }
+
+  function candidateTextNodes(row, profile) {
+    return Array.from(row.querySelectorAll(profile.nameSelectors.join(',')))
       .filter((node) => node instanceof HTMLElement)
       .map((node) => ({
         title: node.getAttribute('title') || '',
@@ -216,12 +257,12 @@
       }));
   }
 
-  function extractFileName(row) {
-    const candidates = candidateTextNodes(row);
+  function extractFileName(row, profile) {
+    const candidates = candidateTextNodes(row, profile);
     for (const candidate of candidates) {
       const value = (candidate.title || candidate.text).trim();
       if (!value) continue;
-      if (/^(share|download|rename|move|copy|delete)$/i.test(value)) continue;
+      if (profile.ignorePattern.test(value)) continue;
       if (value.length < 2) continue;
       return value.replace(/\s+/g, ' ');
     }
@@ -230,16 +271,18 @@
   }
 
   function selectedFilePath() {
-    const row = selectedRow();
-    if (!row) return null;
-    const name = extractFileName(row);
+    const selection = resolveSelection();
+    if (!selection.row || !selection.profile) return null;
+    const name = extractFileName(selection.row, selection.profile);
     if (!name) return null;
     return `${currentPathPrefix()}/${name}`.replace(/\/{2,}/g, '/');
   }
 
   function ensureButton() {
-    const row = selectedRow();
-    if (!row || modal.classList.contains('open')) {
+    const selection = resolveSelection();
+    const row = selection.row;
+    const profile = selection.profile;
+    if (!row || !profile || modal.classList.contains('open')) {
       hideButton();
       return;
     }
@@ -256,8 +299,11 @@
       return;
     }
 
-    const desiredLeft = rect.left + Math.min(Math.max(rect.width * 0.48, 240), rect.width - 120);
-    const desiredTop = rect.top + Math.max(8, Math.min(12, rect.height / 2 - 12));
+    const desiredLeft = rect.left + Math.min(
+      Math.max(rect.width * profile.leftFactor, profile.minLeftOffset),
+      rect.width - profile.rightPadding
+    );
+    const desiredTop = rect.top + Math.max(8, Math.min(profile.topPadding, rect.height / 2 - 12));
 
     if (!button) {
       button = document.createElement('button');

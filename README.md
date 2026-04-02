@@ -1,5 +1,8 @@
 # AList Share Sidecar
 
+[![Release](https://img.shields.io/github/v/release/mrrploc94/alist-share-sidecar)](https://github.com/mrrploc94/alist-share-sidecar/releases)
+[![CI](https://github.com/mrrploc94/alist-share-sidecar/actions/workflows/ci.yml/badge.svg)](https://github.com/mrrploc94/alist-share-sidecar/actions/workflows/ci.yml)
+
 Public, update-safe share links for AList without patching the AList binary.
 
 ## Visual demo
@@ -128,6 +131,10 @@ GitHub Actions runs:
 
 - PHP syntax lint
 - Gitleaks secret scanning
+
+## Changelog
+
+See [CHANGELOG.md](CHANGELOG.md).
 
 ## License
 
