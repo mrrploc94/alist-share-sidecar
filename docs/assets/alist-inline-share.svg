@@ -1,0 +1,32 @@
+<svg width="1280" height="760" viewBox="0 0 1280 760" fill="none" xmlns="http://www.w3.org/2000/svg">
+<rect width="1280" height="760" fill="#F4F7FB"/>
+<rect x="48" y="34" width="1184" height="76" rx="18" fill="white"/>
+<text x="88" y="81" font-family="Segoe UI, Arial" font-size="34" font-weight="700" fill="#3D6BF6">AList</text>
+<rect x="1048" y="54" width="132" height="36" rx="18" fill="#EAF1FF"/>
+<text x="1088" y="79" font-family="Segoe UI, Arial" font-size="18" fill="#4A6FFF">List</text>
+<text x="92" y="158" font-family="Segoe UI, Arial" font-size="28" font-weight="700" fill="#1D2746">AList inline share button</text>
+<text x="92" y="190" font-family="Segoe UI, Arial" font-size="18" fill="#64708B">The sidecar keeps the share action outside the AList binary and injects a lightweight button into the selected row.</text>
+<rect x="92" y="234" width="1096" height="360" rx="28" fill="white"/>
+<text x="130" y="292" font-family="Segoe UI, Arial" font-size="22" font-weight="700" fill="#53627A">Name</text>
+<text x="770" y="292" font-family="Segoe UI, Arial" font-size="22" font-weight="700" fill="#53627A">Size</text>
+<text x="960" y="292" font-family="Segoe UI, Arial" font-size="22" font-weight="700" fill="#53627A">Modified</text>
+<rect x="112" y="328" width="1056" height="74" rx="18" fill="#EEF3FF"/>
+<rect x="128" y="349" width="28" height="34" rx="8" fill="#4A6FFF"/>
+<text x="182" y="374" font-family="Segoe UI, Arial" font-size="20" font-weight="700" fill="#24324E">SEO_Analysis_Giay_Hang_Hieu_DaNang.pdf</text>
+<rect x="644" y="343" width="94" height="44" rx="22" fill="#13A66D"/>
+<text x="671" y="372" font-family="Segoe UI, Arial" font-size="18" font-weight="700" fill="white">Share</text>
+<text x="786" y="374" font-family="Segoe UI, Arial" font-size="20" fill="#24324E">1.16M</text>
+<text x="952" y="374" font-family="Segoe UI, Arial" font-size="20" fill="#24324E">2026-04-02 17:39</text>
+<rect x="112" y="416" width="1056" height="74" rx="18" fill="#F8FAFF"/>
+<rect x="128" y="437" width="28" height="34" rx="8" fill="#9AB3FF"/>
+<text x="182" y="462" font-family="Segoe UI, Arial" font-size="20" fill="#67748A">Roadmap_Q2.pdf</text>
+<text x="786" y="462" font-family="Segoe UI, Arial" font-size="20" fill="#67748A">842K</text>
+<text x="952" y="462" font-family="Segoe UI, Arial" font-size="20" fill="#67748A">2026-03-29 09:11</text>
+<rect x="112" y="504" width="1056" height="74" rx="18" fill="#F8FAFF"/>
+<rect x="128" y="525" width="28" height="34" rx="8" fill="#9AB3FF"/>
+<text x="182" y="550" font-family="Segoe UI, Arial" font-size="20" fill="#67748A">Brand_Guide.pdf</text>
+<text x="786" y="550" font-family="Segoe UI, Arial" font-size="20" fill="#67748A">2.4M</text>
+<text x="952" y="550" font-family="Segoe UI, Arial" font-size="20" fill="#67748A">2026-03-27 20:05</text>
+<rect x="92" y="632" width="504" height="72" rx="20" fill="#1F1D46"/>
+<text x="128" y="674" font-family="Segoe UI, Arial" font-size="18" fill="#CDD5FF">Update-safe deployment: keep sidecar files and proxy rules outside the AList image.</text>
+</svg>

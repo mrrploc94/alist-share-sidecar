@@ -2,6 +2,18 @@
 
 Public, update-safe share links for AList without patching the AList binary.
 
+## Visual demo
+
+Illustrative product mockups for the sidecar flow:
+
+![Inline share button](docs/assets/alist-inline-share.svg)
+
+![Share modal](docs/assets/share-modal-demo.svg)
+
+Animated flow:
+
+![Share flow demo](docs/assets/share-flow.gif)
+
 This project adds a small sidecar app beside AList:
 
 - `share-inject.js` adds a share button into the AList UI
