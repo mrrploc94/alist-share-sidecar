@@ -4,65 +4,41 @@
 
   const API_BASE = '/share-app/api.php';
   const SHARE_BASE = '/s';
-  const BUTTON_ID = 'alist-share-inline-button';
   const MODAL_ID = 'alist-share-modal';
-  const SELECTOR_PROFILES = [
+  const ROW_BUTTON_CLASS = 'alist-share-row-button';
+  const ROW_MARKER_ATTR = 'data-alist-share-bound';
+  const ROW_PROFILES = [
     {
-      name: 'table-selected',
-      rowSelectors: ['tr[aria-selected="true"]', 'tr[class*="selected"]', 'tr.selected'],
-      nameSelectors: ['[title]', 'a', 'td', 'span'],
-      ignorePattern: /^(share|download|rename|move|copy|delete|size|modified)$/i,
-      leftFactor: 0.48,
-      minLeftOffset: 240,
-      rightPadding: 120,
-      topPadding: 10,
-    },
-    {
-      name: 'generic-selected',
-      rowSelectors: ['[aria-selected="true"]', '.is-selected', '.selected'],
-      nameSelectors: ['[title]', 'a', '.name', '.hope-text', 'span', 'div', 'p'],
-      ignorePattern: /^(share|download|rename|move|copy|delete|size|modified)$/i,
-      leftFactor: 0.5,
-      minLeftOffset: 220,
-      rightPadding: 124,
-      topPadding: 10,
-    },
-    {
-      name: 'list-item-fallback',
-      rowSelectors: ['.list-item[aria-selected="true"]', '.list-item.selected', '.grid-item.selected'],
-      nameSelectors: ['[title]', '.name', '.hope-text', 'a', 'span', 'div'],
-      ignorePattern: /^(share|download|rename|move|copy|delete|size|modified)$/i,
-      leftFactor: 0.52,
-      minLeftOffset: 210,
-      rightPadding: 128,
-      topPadding: 8,
+      name: 'table-links',
+      rowSelectors: ['a[href]:has(img)', 'a[href]'],
+      ignoreHrefPrefixes: ['/@', 'http://', 'https://', 'javascript:'],
+      ignoreText: /^(home|manage|powered by alist|name|size|modified|per page)$/i,
+      buttonOffsetLeft: 16,
+      buttonOffsetTop: 6,
     },
   ];
 
   let currentTarget = null;
   let currentDays = 7;
-  let button = null;
   let modal = null;
   let observer = null;
   let rafId = 0;
-  let activeProfile = null;
 
-  if (!shouldBootOnCurrentPage()) {
-    return;
-  }
+  if (!shouldBootOnCurrentPage()) return;
 
   injectStyles();
   buildModal();
-  scheduleButtonRefresh();
+  scheduleRefresh();
   bindGlobalListeners();
 
   function injectStyles() {
     const style = document.createElement('style');
     style.textContent = `
-      #${BUTTON_ID}{
-        position:fixed;
-        z-index:1200;
-        padding:6px 12px;
+      .${ROW_BUTTON_CLASS}{
+        display:inline-flex;
+        align-items:center;
+        justify-content:center;
+        padding:4px 10px;
         border:0;
         border-radius:999px;
         background:#12a56d;
@@ -71,9 +47,11 @@
         font-size:12px;
         line-height:1;
         cursor:pointer;
-        box-shadow:0 10px 24px rgba(18,165,109,.25);
+        box-shadow:0 10px 24px rgba(18,165,109,.18);
+        margin-left:16px;
+        vertical-align:middle;
       }
-      #${BUTTON_ID}[hidden]{display:none!important}
+      .${ROW_BUTTON_CLASS}[hidden]{display:none!important}
       #${MODAL_ID}{
         position:fixed;
         inset:0;
@@ -179,18 +157,18 @@
   }
 
   function bindGlobalListeners() {
-    window.addEventListener('scroll', scheduleButtonRefresh, { passive: true });
-    window.addEventListener('resize', scheduleButtonRefresh, { passive: true });
-    window.addEventListener('popstate', scheduleButtonRefresh);
-    document.addEventListener('click', () => setTimeout(scheduleButtonRefresh, 30), true);
-    document.addEventListener('contextmenu', () => setTimeout(scheduleButtonRefresh, 30), true);
+    window.addEventListener('scroll', scheduleRefresh, { passive: true });
+    window.addEventListener('resize', scheduleRefresh, { passive: true });
+    window.addEventListener('popstate', scheduleRefresh);
+    document.addEventListener('click', () => setTimeout(scheduleRefresh, 30), true);
+    document.addEventListener('contextmenu', () => setTimeout(scheduleRefresh, 30), true);
 
-    observer = new MutationObserver(() => scheduleButtonRefresh());
+    observer = new MutationObserver(() => scheduleRefresh());
     observer.observe(document.body, {
       childList: true,
       subtree: true,
       attributes: true,
-      attributeFilter: ['class', 'aria-selected', 'style'],
+      attributeFilter: ['class', 'style', 'href'],
     });
   }
 
@@ -221,17 +199,10 @@
 
         try {
           const parsed = JSON.parse(value);
-          const candidates = [
-            parsed?.token,
-            parsed?.Authorization,
-            parsed?.data?.token,
-            parsed?.auth?.token,
-          ];
+          const candidates = [parsed?.token, parsed?.Authorization, parsed?.data?.token, parsed?.auth?.token];
           const match = candidates.find((candidate) => typeof candidate === 'string' && candidate.length > 20);
           if (match) return normalizeToken(match);
-        } catch (_) {
-          continue;
-        }
+        } catch (_) {}
       }
     }
 
@@ -246,161 +217,134 @@
     return decodeURIComponent(window.location.pathname || '/').replace(/\/+$/, '') || '/';
   }
 
-  function visibleElements(selector) {
-    return Array.from(document.querySelectorAll(selector))
-      .filter((row) => row instanceof HTMLElement && row.offsetParent !== null);
+  function visibleElements(selector, root = document) {
+    return Array.from(root.querySelectorAll(selector))
+      .filter((element) => element instanceof HTMLElement && element.offsetParent !== null);
   }
 
-  function findBrowserRoot() {
-    const candidates = [
-      'main',
-      '[role="main"]',
-      '.obj-box',
-      '.obj-wrap',
-      '.table',
-      '.list',
-      '.grid',
-      '.content',
-      '.body',
-    ];
-
-    for (const selector of candidates) {
-      const roots = visibleElements(selector);
-      for (const root of roots) {
-        const text = (root.textContent || '').toLowerCase();
-        const hasFileHeaders = text.includes('name') && (text.includes('modified') || text.includes('size'));
-        const hasSelectedFileRow = SELECTOR_PROFILES.some((profile) =>
-          profile.rowSelectors.some((rowSelector) => root.querySelector(rowSelector))
-        );
-
-        if (hasFileHeaders && hasSelectedFileRow) {
-          return root;
-        }
+  function resolveRows(profile) {
+    const rows = [];
+    for (const selector of profile.rowSelectors) {
+      for (const link of visibleElements(selector)) {
+        if (!isShareableLink(link, profile)) continue;
+        const row = resolveRowContainer(link);
+        if (!(row instanceof HTMLElement)) continue;
+        if (rows.includes(row)) continue;
+        rows.push(row);
       }
     }
-
-    return null;
+    return rows;
   }
 
-  function resolveSelection() {
-    const root = findBrowserRoot();
-    if (!root) {
-      activeProfile = null;
-      return { row: null, profile: null, root: null };
-    }
-
-    for (const profile of SELECTOR_PROFILES) {
-      const selector = profile.rowSelectors.join(',');
-      const row = Array.from(root.querySelectorAll(selector))
-        .find((item) => item instanceof HTMLElement && item.offsetParent !== null) || null;
-      if (row) {
-        activeProfile = profile;
-        return { row, profile, root };
+  function resolveRowContainer(link) {
+    let node = link.parentElement;
+    while (node && node !== document.body) {
+      const text = (node.textContent || '').trim();
+      const childLinks = node.querySelectorAll('a[href]').length;
+      const childParagraphs = node.querySelectorAll('p, div, span').length;
+      if (text && childLinks >= 1 && childParagraphs >= 2) {
+        return node;
       }
+      node = node.parentElement;
     }
-
-    activeProfile = null;
-    return { row: null, profile: null, root };
+    return link.parentElement;
   }
 
-  function candidateTextNodes(row, profile) {
-    return Array.from(row.querySelectorAll(profile.nameSelectors.join(',')))
-      .filter((node) => node instanceof HTMLElement)
-      .map((node) => ({
-        title: node.getAttribute('title') || '',
-        text: (node.textContent || '').trim(),
-      }));
+  function isShareableLink(link, profile) {
+    const href = link.getAttribute('href') || '';
+    const text = (link.textContent || link.getAttribute('title') || '').trim();
+
+    if (!href || href === '/' || href === '#') return false;
+    if (profile.ignoreHrefPrefixes.some((prefix) => href.startsWith(prefix))) return false;
+    if (!text || profile.ignoreText.test(text)) return false;
+    if (text.length < 2) return false;
+    if (link.closest('nav, [role="navigation"], [aria-label="breadcrumb"], footer')) return false;
+
+    return true;
   }
 
-  function extractFileName(row, profile) {
-    const candidates = candidateTextNodes(row, profile);
-    for (const candidate of candidates) {
-      const value = (candidate.title || candidate.text).trim();
-      if (!value) continue;
-      if (profile.ignorePattern.test(value)) continue;
-      if (value.length < 2) continue;
-      return value.replace(/\s+/g, ' ');
-    }
+  function resolvePrimaryLink(row, profile) {
+    const links = Array.from(row.querySelectorAll('a[href]'))
+      .filter((link) => link instanceof HTMLElement && link.offsetParent !== null);
 
-    return '';
+    return links.find((link) => isShareableLink(link, profile)) || null;
   }
 
-  function selectedFilePath() {
-    const selection = resolveSelection();
-    if (!selection.row || !selection.profile) return null;
-    const name = extractFileName(selection.row, selection.profile);
-    if (!name) return null;
-    return `${currentPathPrefix()}/${name}`.replace(/\/{2,}/g, '/');
+  function resolveRowPath(row, profile) {
+    const link = resolvePrimaryLink(row, profile);
+    if (!link) return null;
+
+    const title = link.getAttribute('title');
+    const text = (title || link.textContent || '').trim().replace(/\s+/g, ' ');
+    if (!text || profile.ignoreText.test(text)) return null;
+
+    return `${currentPathPrefix()}/${text}`.replace(/\/{2,}/g, '/');
   }
 
-  function ensureButton() {
-    const selection = resolveSelection();
-    const row = selection.row;
-    const profile = selection.profile;
-    if (!row || !profile || modal.classList.contains('open')) {
-      hideButton();
-      return;
-    }
+  function attachButton(row, profile) {
+    if (!(row instanceof HTMLElement)) return;
 
-    const filePath = selectedFilePath();
-    if (!filePath) {
-      hideButton();
-      return;
-    }
+    const link = resolvePrimaryLink(row, profile);
+    const filePath = resolveRowPath(row, profile);
+    if (!link || !filePath) return;
 
-    const rect = row.getBoundingClientRect();
-    if (rect.width < 200 || rect.height < 20) {
-      hideButton();
-      return;
-    }
-
-    const desiredLeft = rect.left + Math.min(
-      Math.max(rect.width * profile.leftFactor, profile.minLeftOffset),
-      rect.width - profile.rightPadding
-    );
-    const desiredTop = rect.top + Math.max(8, Math.min(profile.topPadding, rect.height / 2 - 12));
-
+    let button = row.querySelector(`.${ROW_BUTTON_CLASS}`);
     if (!button) {
       button = document.createElement('button');
-      button.id = BUTTON_ID;
-      button.textContent = 'Share';
       button.type = 'button';
-      button.addEventListener('click', openModal);
-      document.body.appendChild(button);
+      button.className = ROW_BUTTON_CLASS;
+      button.textContent = 'Share';
+      button.addEventListener('click', (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        openModal(filePath);
+      });
+      link.insertAdjacentElement('afterend', button);
     }
 
-    button.hidden = false;
-    button.style.left = `${Math.round(desiredLeft)}px`;
-    button.style.top = `${Math.round(desiredTop)}px`;
     button.dataset.filePath = filePath;
+    button.hidden = modal.classList.contains('open');
+    row.setAttribute(ROW_MARKER_ATTR, '1');
   }
 
-  function hideButton() {
-    if (button) {
-      button.hidden = true;
+  function cleanupStaleButtons() {
+    document.querySelectorAll(`.${ROW_BUTTON_CLASS}`).forEach((button) => {
+      if (!document.body.contains(button)) {
+        button.remove();
+      }
+    });
+  }
+
+  function refreshButtons() {
+    cleanupStaleButtons();
+    if (modal.classList.contains('open')) return;
+
+    for (const profile of ROW_PROFILES) {
+      for (const row of resolveRows(profile)) {
+        attachButton(row, profile);
+      }
     }
   }
 
-  function scheduleButtonRefresh() {
+  function scheduleRefresh() {
     cancelAnimationFrame(rafId);
-    rafId = requestAnimationFrame(ensureButton);
+    rafId = requestAnimationFrame(refreshButtons);
   }
 
-  function openModal() {
-    const filePath = button?.dataset.filePath || selectedFilePath();
-    if (!filePath) return;
-
+  function openModal(filePath) {
     currentTarget = filePath;
     document.getElementById('alist-share-file').value = filePath;
     document.getElementById('alist-share-result').style.display = 'none';
     document.getElementById('alist-share-error').style.display = 'none';
     modal.classList.add('open');
-    hideButton();
+    document.querySelectorAll(`.${ROW_BUTTON_CLASS}`).forEach((button) => {
+      button.hidden = true;
+    });
   }
 
   function closeModal() {
     modal.classList.remove('open');
-    scheduleButtonRefresh();
+    scheduleRefresh();
   }
 
   async function createShare() {
@@ -454,7 +398,7 @@
       } catch (_) {
         copyButton.textContent = 'Copy failed';
       }
-    }, { once: false });
+    });
   }
 
   function showError(message) {
