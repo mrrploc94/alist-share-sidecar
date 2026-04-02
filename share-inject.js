@@ -7,6 +7,7 @@
   const MODAL_ID = 'alist-share-modal';
   const ROW_BUTTON_CLASS = 'alist-share-row-button';
   const ROW_MARKER_ATTR = 'data-alist-share-bound';
+  const ROW_HOST_CLASS = 'alist-share-row-host';
   const ROW_PROFILES = [
     {
       name: 'table-links',
@@ -38,20 +39,33 @@
         display:inline-flex;
         align-items:center;
         justify-content:center;
-        padding:4px 10px;
-        border:0;
+        min-height:24px;
+        padding:3px 9px;
+        border:1px solid rgba(18,165,109,.18);
         border-radius:999px;
-        background:#12a56d;
-        color:#fff;
+        background:rgba(18,165,109,.08);
+        color:#0f8c5d;
         font-weight:700;
-        font-size:12px;
+        font-size:11px;
         line-height:1;
         cursor:pointer;
-        box-shadow:0 10px 24px rgba(18,165,109,.18);
-        margin-left:16px;
+        box-shadow:none;
+        margin-left:10px;
         vertical-align:middle;
+        opacity:.4;
+        transition:opacity .18s ease, background .18s ease, color .18s ease, border-color .18s ease, transform .18s ease, box-shadow .18s ease;
       }
       .${ROW_BUTTON_CLASS}[hidden]{display:none!important}
+      .${ROW_HOST_CLASS}:hover .${ROW_BUTTON_CLASS},
+      .${ROW_HOST_CLASS}:focus-within .${ROW_BUTTON_CLASS},
+      .${ROW_BUTTON_CLASS}:focus-visible{
+        opacity:1;
+        background:#12a56d;
+        color:#fff;
+        border-color:#12a56d;
+        box-shadow:0 8px 18px rgba(18,165,109,.18);
+        transform:translateY(-1px);
+      }
       #${MODAL_ID}{
         position:fixed;
         inset:0;
@@ -304,6 +318,7 @@
 
     button.dataset.filePath = filePath;
     button.hidden = modal.classList.contains('open');
+    row.classList.add(ROW_HOST_CLASS);
     row.setAttribute(ROW_MARKER_ATTR, '1');
   }
 
