@@ -47,6 +47,10 @@
   let rafId = 0;
   let activeProfile = null;
 
+  if (!shouldBootOnCurrentPage()) {
+    return;
+  }
+
   injectStyles();
   buildModal();
   scheduleButtonRefresh();
@@ -190,6 +194,19 @@
     });
   }
 
+  function shouldBootOnCurrentPage() {
+    const path = window.location.pathname || '/';
+    const title = (document.title || '').toLowerCase();
+
+    if (/^\/@/.test(path)) return false;
+    if (path.includes('/@manage')) return false;
+    if (path.includes('/@login')) return false;
+    if (title.includes('alist manage')) return false;
+    if (title.includes('manage')) return false;
+
+    return true;
+  }
+
   function getToken() {
     const stores = [window.localStorage, window.sessionStorage];
     for (const store of stores) {
@@ -234,18 +251,56 @@
       .filter((row) => row instanceof HTMLElement && row.offsetParent !== null);
   }
 
+  function findBrowserRoot() {
+    const candidates = [
+      'main',
+      '[role="main"]',
+      '.obj-box',
+      '.obj-wrap',
+      '.table',
+      '.list',
+      '.grid',
+      '.content',
+      '.body',
+    ];
+
+    for (const selector of candidates) {
+      const roots = visibleElements(selector);
+      for (const root of roots) {
+        const text = (root.textContent || '').toLowerCase();
+        const hasFileHeaders = text.includes('name') && (text.includes('modified') || text.includes('size'));
+        const hasSelectedFileRow = SELECTOR_PROFILES.some((profile) =>
+          profile.rowSelectors.some((rowSelector) => root.querySelector(rowSelector))
+        );
+
+        if (hasFileHeaders && hasSelectedFileRow) {
+          return root;
+        }
+      }
+    }
+
+    return null;
+  }
+
   function resolveSelection() {
+    const root = findBrowserRoot();
+    if (!root) {
+      activeProfile = null;
+      return { row: null, profile: null, root: null };
+    }
+
     for (const profile of SELECTOR_PROFILES) {
       const selector = profile.rowSelectors.join(',');
-      const row = visibleElements(selector)[0] || null;
+      const row = Array.from(root.querySelectorAll(selector))
+        .find((item) => item instanceof HTMLElement && item.offsetParent !== null) || null;
       if (row) {
         activeProfile = profile;
-        return { row, profile };
+        return { row, profile, root };
       }
     }
 
     activeProfile = null;
-    return { row: null, profile: null };
+    return { row: null, profile: null, root };
   }
 
   function candidateTextNodes(row, profile) {
